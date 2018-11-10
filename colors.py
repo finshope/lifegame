@@ -1,4 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
+"""some colors definition
+
+This file defines dictionary mapping color names to (r,g,b) tuple or "#xxxxxx" color string,
+which can be used for constucting a pygame Color object.
+Dict colors map color names to "#xxxxxx" color string.
+"""
+
+
 from random import choice
 from pygame import Color
 
@@ -467,12 +475,13 @@ del name, color
 
 color_list = list(colors.values())
 def random_color():
+    """return a "#xxxxxx" color string from konwn color lists"""
     return choice(color_list)
 
 rgb_range = range(0,255)
 def random_color_all():
+    """retrun a (r, g, b, a) tuple from every possible color randomly""" 
     return Color(choice(rgb_range),choice(rgb_range),choice(rgb_range),choice(rgb_range))
-#
 
 def random_name_and_color():
     """return a (name, pygame.Color) pair randomly from known colors list"""
@@ -482,3 +491,4 @@ def random_name_and_color():
     return keys[idx], colors[keys[idx]]
 if __name__ == '__main__':
     print(_colors.keys())
+__all__ = ['colors', 'random_color_all', 'random_color', 'random_name_and_color']
