@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+
+
 import random
 import time
 import sys
 
 import pygame
 from pygame.locals import *
-import pygame.surfarray as surfarray
-import numpy as np
 
 import colors
 
@@ -39,7 +39,7 @@ def main():
     fontObj = pygame.font.Font('freesansbold.ttf',32);
     FPSCLOCK = pygame.time.Clock()
     FPS = 5
-    maps = generate_random_map(WIDTH,HEIGHT);
+    maps = generate_random_map(HEIGHT, WIDTH);
     pre_frame_time = time.time()
     paused = False
     while True:
@@ -75,7 +75,7 @@ def main():
                 if event.key == K_s:
                     FPS = 0
                 if event.key == K_r:
-                    maps = generate_random_map(WIDTH,HEIGHT)
+                    maps = generate_random_map(HEIGHT, WIDTH)
 
             if event.type == QUIT:
                 pygame.quit()
@@ -85,10 +85,10 @@ def main():
         count += 1
 
         #draw grid
-        #for i in range(1,WIDTH):
-        #    pygame.draw.line(SURF, GRID_COLOR,(i*CELL_SIZE[0],0),(i*CELL_SIZE[0],SCREEN_SIZE[1]))
-        #for i in range(1,HEIGHT):
-        #    pygame.draw.line(SURF, GRID_COLOR,(0,i*CELL_SIZE[1]),(SCREEN_SIZE[0],i*CELL_SIZE[1]))
+        for i in range(1,WIDTH):
+            pygame.draw.line(SURF, GRID_COLOR,(i*CELL_SIZE[0],0),(i*CELL_SIZE[0],SCREEN_SIZE[1]))
+        for i in range(1,HEIGHT):
+            pygame.draw.line(SURF, GRID_COLOR,(0,i*CELL_SIZE[1]),(SCREEN_SIZE[0],i*CELL_SIZE[1]))
         show_map(maps)
         if not paused:
             maps = update(maps)
@@ -111,95 +111,57 @@ def main():
 
 
 def generate_random_map(HEIGHT,WIDTH):
-    global myslices, a_x
-    K = CELL_SIZE[0]
-    a_x = np.zeros(SCREEN_SIZE, dtype=np.bool)
-    Y = a_x.shape[0]
-    X = a_x.shape[1]
-    myslices = []
-    for y in range(0, K):
-        for x in range(0, K):
-            s = slice(y, Y, K), slice(x, X, K)
-            myslices.append(s)
-    print('HEIGHT=',HEIGHT,  ' WIDTH=',WIDTH, 'block_side=', CELL_SIZE[0])
-    maps = np.zeros((HEIGHT+2,WIDTH+2), dtype=np.bool)
+    """generate a (HEIGHT + 2, WIDTH + 2) size map randomly,
+fill each side with False"""
+
+    maps=[[False] * (WIDTH+2)]
     for row in range(HEIGHT):
+        row_map = []
         n_cell = random.randint(0, WIDTH)
-        row_map = n_cell * [np.bool(1)]
-        row_map.extend([np.bool(0)]*(WIDTH-n_cell))
-        assert len(row_map) == WIDTH
+        row_map.extend([True] * n_cell)
+        row_map.extend([False] * (WIDTH-n_cell))
         random.shuffle(row_map)
-        maps[row+1,1:-1] = row_map
+        row_map.insert(0,False)
+        row_map.append(False)
+        assert len(row_map) == (WIDTH + 2)
+        maps.append(row_map)
+    maps.append([False] * (WIDTH+2))
     return maps
 
 def show_map(maps):
-    global myslices, a_x
-    maps = maps[1:WIDTH+1,1:HEIGHT+1]
-
-    #map_array = np.kron(maps,block)
-
-    #map_array = maps.repeat(CELL_SIZE[0],axis=0).repeat(CELL_SIZE[1],axis=1)
-    
-    if CELL_SIZE[0] < 10:
-        for s in myslices:
-            a_x[s] = maps
-        map_array = a_x
-
-        map_array = map_array * SURF.map_rgb(colors.random_color())
-        surfarray.blit_array(SURF, map_array)
-    else:
-        cell_surf = pygame.Surface(CELL_SIZE)
-        for w in range(WIDTH):
-            for h in range(HEIGHT):
-                if maps[w][h]:
+    cell_surf = pygame.Surface(CELL_SIZE)
+    for w in range(WIDTH):
+        for h in range(HEIGHT):
+            try:
+                if maps[h+1][w+1]:
                     cell_surf.fill(colors.random_color())
-                    SURF.blit(cell_surf, (w * CELL_SIZE[0], h * CELL_SIZE[1]))
-
-
-
-                #SURF.blit(cell_surf,(x*CELL_SIZE[0], y * CELL_SIZE[1]))
-
-
-
-                #tmp_surf.fill(colors.random_color(), rect=(x*CELL_SIZE[0],y*CELL_SIZE[1],CELL_SIZE[0],CELL_SIZE[1]))
-
-                #tmp_surf.blit(cell_surf, (x*CELL_SIZE[0], y * CELL_SIZE[1]))
-
-#                pygame.draw.rect(SURF, colors.random_color(), (x*CELL_SIZE[0],y*CELL_SIZE[1],CELL_SIZE[0],CELL_SIZE[1]))
-    #surfarray.blit_array(SURF, dest)
-    #SURF.blit(tmp_surf,(0,0))
+                    SURF.blit(cell_surf, ((w+1) * CELL_SIZE[0], (h+1) * CELL_SIZE[1]))
+            except:
+                print(w, h)
 
 def update(maps):
-    nbrs_count = sum(np.roll(np.roll(maps, i, 0), j, 1)
-                for i in (-1, 0, 1) for j in (-1, 0, 1)
-                if (i != 0 or j != 0))
-    _newmaps = (nbrs_count == 3) | (maps & (nbrs_count == 2))
-    newmaps = np.zeros((WIDTH+2,HEIGHT+2), dtype=np.bool)
-    newmaps[1:WIDTH+1, 1:HEIGHT+1] = _newmaps[1:WIDTH+1, 1:HEIGHT+1]
-#    newmaps = np.zeros((HEIGHT+2,WIDTH+2), dtype=np.bool)
-#    for y in range(HEIGHT):
-#        row_cell = []
-#        y += 1
-#        for x in range(WIDTH):
-#            count = 0
-#            x += 1
-#            count = np.sum(maps[y-1:y+2,x-1:x+2]) - maps[y, x]
-#            if count==3:
-#                newmaps[y][x] = np.bool(1)
-#row_cell.append(True)
-#            elif count==2:
-#                newmaps[y][x] = maps[y][x]
-#row_cell.append(maps[y][x])
-#            else:
-#                newmaps[y][x] = np.bool(0)
-#row_cell.append(False)
-#if random.randint(0,HEIGHT*WIDTH-1) % 65536 == 0:
-#               newmaps[y][x] = True
-#row_cell[-1] = True
-#assert len(row_cell) == (WIDTH-1)
-#    random_y = random.choice(range(0,HEIGHT))
-#    random_x = random.choice(range(0,WIDTH))
-#    newmaps[random_x+1][random_y+1] = np.bool(1)
+    """calculate status of ever cell in next generation"""
+
+    newmaps = [[False] * (WIDTH + 2)]
+    print('lens of maps = ',len(maps))
+    for y in range(1, HEIGHT+1):
+        row_map = [False]
+        for x in range(1, WIDTH+1):
+            count = 0
+            try:
+                count = sum(maps[i][j] for i in (y-1, y, y+1) for j in (x-1, x, x+1) if(i!=y or j!=x))
+            except:
+                pass
+            if count==3:
+                row_map.append(True)
+            elif count==2:
+                row_map.append(maps[y][x])
+            else:
+                row_map.append(False)
+        row_map.append(False)
+        assert len(row_map) == (WIDTH+2)
+        newmaps.append(row_map)
+    newmaps.append([False] * (WIDTH + 2))
     return newmaps
 
 
