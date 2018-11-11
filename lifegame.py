@@ -6,41 +6,46 @@ import sys
 
 import pygame
 from pygame.locals import *
-import pygame.surfarray as surfarray
+import pygame.surfarray as surfarray        # for performance
 import numpy as np
 
-import colors
+import colors       # color definition
 
 
-SCREEN_SIZE=(1600,900)
-SIDE=50
-CELL_SIZE=(SIDE,SIDE)
-WIDTH=int(SCREEN_SIZE[0]/CELL_SIZE[0]);
-HEIGHT=int(SCREEN_SIZE[1]/CELL_SIZE[1]);
+SCREEN_SIZE = (1600, 900)                   # change it to your screen size
 #color definitions
 #           (r,     g,      b)
-RED   =     (255,   0,      0);
-BLACK =     (0,     0,      0);
-WHITE =     (255,   255,    255);
-GREEN =     (0,     255,    0);
-BLUE  =     (0,     0,      128);
-BG_COLOR=BLACK
-GRID_COLOR=BLUE
-CELL_COLOR=GREEN
+RED   =     (255,   0,      0)
+BLACK =     (0,     0,      0)
+WHITE =     (255,   255,    255)
+GREEN =     (0,     255,    0)
+BLUE  =     (0,     0,      128)
+
+BG_COLOR = BLACK
+CELL_COLOR = GREEN
 
 
 def main():
-    global SURF, WIDTH, HEIGHT, CELL_SIZE
-    global SIDE
-    count = 0
+    """\
+Press 'a' to decrease max possible fps.
+Press 'd' to increase max possible fps.
+Press 's' for no max fps limit.
+Press 'z' to decrease length of cell side.
+Press 'x' to increase length of cell side.
+Press 'p' to pause the game.
+"""
+    side = 50                                   # length of cell side
+    width = int(SCREEN_SIZE[0] / side)  # number of cells per row 
+    height = int(SCREEN_SIZE[1] / side) # number of cellls per column
     pygame.init()
     pygame.mouse.set_visible(False)
     SURF = pygame.display.set_mode(SCREEN_SIZE,FULLSCREEN,32);
     fontObj = pygame.font.Font('freesansbold.ttf',32);
+
     FPSCLOCK = pygame.time.Clock()
-    FPS = 5
-    maps = generate_random_map(WIDTH,HEIGHT);
-    pre_frame_time = time.time()
+    fps = 5                                     # max fps 
+    maps, slices = generate_random_map(width, height, side);
+    pre_frame_time = time.time()                # time of previous frame
     paused = False
     while True:
         for event in pygame.event.get():
@@ -55,44 +60,39 @@ def main():
                 if event.key == K_p:
                     paused = not paused
                 if event.key == K_f:
-                    maps[random.randint(0,WIDTH-1),random.randint(0,HEIGHT-1)]=True
-                if event.key == K_z and SIDE > 5:
-                    SIDE -= 5
-                    if SIDE == 15:
-                        SIDE = 10
-                    CELL_SIZE=(SIDE, SIDE)
-                    WIDTH=int(SCREEN_SIZE[0]/CELL_SIZE[0]);
-                    HEIGHT=int(SCREEN_SIZE[1]/CELL_SIZE[1]);
-                    maps = generate_random_map(WIDTH, HEIGHT)
-                if event.key == K_x and CELL_SIZE[0] < 100:
-                    SIDE += 5
-                    if SIDE == 15:
-                        SIDE = 20
-                    CELL_SIZE = (SIDE, SIDE)
-                    WIDTH=int(SCREEN_SIZE[0]/CELL_SIZE[0]);
-                    HEIGHT=int(SCREEN_SIZE[1]/CELL_SIZE[1]);
-                    maps = generate_random_map(WIDTH, HEIGHT)
+                    maps[random.randint(1, width), random.randint(1, height)] = True
+                if event.key == K_k:
+                    maps[random.randint(1, width), :] = True
+                if event.key == K_l:
+                    maps[:, random.randint(1, height)] = True
+                if event.key == K_z and side > 5:
+                    side -= 5
+                    if side == 15:
+                        side = 10
+                    width = int(SCREEN_SIZE[0] / side);
+                    height = int(SCREEN_SIZE[1] / side);
+                    maps, slices = generate_random_map(width, height, side)
+                if event.key == K_x and side < 100:
+                    side += 5
+                    if side == 15:
+                        side = 20
+                    width = int(SCREEN_SIZE[0] / side);
+                    height = int(SCREEN_SIZE[1] / side);
+                    maps, slices = generate_random_map(width, height, side)
                 if event.key == K_s:
-                    FPS = 0
+                    fps = 0
                 if event.key == K_r:
-                    maps = generate_random_map(WIDTH,HEIGHT)
+                    maps, slices = generate_random_map(width, height, side)
 
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
+
         SURF.fill(BG_COLOR)
 
-        count += 1
-
-        #draw grid
-        #for i in range(1,WIDTH):
-        #    pygame.draw.line(SURF, GRID_COLOR,(i*CELL_SIZE[0],0),(i*CELL_SIZE[0],SCREEN_SIZE[1]))
-        #for i in range(1,HEIGHT):
-        #    pygame.draw.line(SURF, GRID_COLOR,(0,i*CELL_SIZE[1]),(SCREEN_SIZE[0],i*CELL_SIZE[1]))
-        show_map(maps)
+        show_map(SURF, maps, side, slices)
         if not paused:
             maps = update(maps)
-
 
         current_frame_time = time.time()
         textSURF = fontObj.render('real fps: ' + str(1//(current_frame_time-pre_frame_time)), True, colors.random_color());
@@ -101,107 +101,74 @@ def main():
         textRect.topright = (SCREEN_SIZE[0],200);
         SURF.blit(textSURF,textRect);
 
-        textSURF = fontObj.render('length of side: ' +  str(SIDE), True, colors.random_color());
+        textSURF = fontObj.render('length of side: ' +  str(side), True, colors.random_color());
         textRect = textSURF.get_rect();
         textRect.topright = (SCREEN_SIZE[0],100);
         SURF.blit(textSURF,textRect);
 
         pygame.display.update();
-        FPSCLOCK.tick(FPS)
+        FPSCLOCK.tick(fps)
 
 
-def generate_random_map(HEIGHT,WIDTH):
-    global myslices, a_x
-    K = CELL_SIZE[0]
-    a_x = np.zeros(SCREEN_SIZE, dtype=np.bool)
-    Y = a_x.shape[0]
-    X = a_x.shape[1]
-    myslices = []
-    for y in range(0, K):
-        for x in range(0, K):
-            s = slice(y, Y, K), slice(x, X, K)
-            myslices.append(s)
-    print('HEIGHT=',HEIGHT,  ' WIDTH=',WIDTH, 'block_side=', CELL_SIZE[0])
-    maps = np.zeros((HEIGHT+2,WIDTH+2), dtype=np.bool)
-    for row in range(HEIGHT):
-        n_cell = random.randint(0, WIDTH)
-        row_map = n_cell * [np.bool(1)]
-        row_map.extend([np.bool(0)]*(WIDTH-n_cell))
-        assert len(row_map) == WIDTH
-        random.shuffle(row_map)
-        maps[row+1,1:-1] = row_map
-    return maps
+def generate_random_map(width, height, side):
+    """\
+Generate a larger sized map than given width, height.
+Define slices for quickly drawing with small length of side.
+Return generated map and slices.
+"""
+    slices = None
+    if side < 10:
+        K = side
+        Y, X = SCREEN_SIZE
+        slices = []
+        for y in range(0, K):
+            for x in range(0, K):
+                s = slice(y, Y, K), slice(x, X, K)
+                slices.append(s)
 
-def show_map(maps):
-    global myslices, a_x
-    maps = maps[1:WIDTH+1,1:HEIGHT+1]
+    maps = np.zeros((width+2, height+2), dtype=np.bool)
+    for col in range(width):
+        n_cell = random.randint(0, height)
+        col_map = n_cell * [np.bool(1)]
+        col_map.extend([np.bool(0)] * (height-n_cell))
+        assert len(col_map) == height 
+        random.shuffle(col_map)
+        maps[col+1,1:-1] = col_map
+    return (maps, slices)
 
-    #map_array = np.kron(maps,block)
+def show_map(SURF, _map, side, slices=None):
+    """\
+Draw the map to surface SURF. If side is to small, pass in slices returned
+by generate_random_map.
+"""
+    _map = _map[1:-1, 1:-1]
 
-    #map_array = maps.repeat(CELL_SIZE[0],axis=0).repeat(CELL_SIZE[1],axis=1)
-    
-    if CELL_SIZE[0] < 10:
-        for s in myslices:
-            a_x[s] = maps
-        map_array = a_x
+    if slices is not None:
+        bit_map = np.zeros(SCREEN_SIZE, dtype=np.bool)
+        for s in slices:
+            bit_map[s] = _map
 
-        map_array = map_array * SURF.map_rgb(colors.random_color())
-        surfarray.blit_array(SURF, map_array)
+        bit_map = bit_map * SURF.map_rgb(colors.random_color())
+        surfarray.blit_array(SURF, bit_map)
     else:
-        cell_surf = pygame.Surface(CELL_SIZE)
-        for w in range(WIDTH):
-            for h in range(HEIGHT):
-                if maps[w][h]:
+        cell_surf = pygame.Surface((side,side))
+        for w in range(_map.shape[0]):
+            for h in range(_map.shape[1]):
+                if _map[w][h]:
                     cell_surf.fill(colors.random_color())
-                    SURF.blit(cell_surf, (w * CELL_SIZE[0], h * CELL_SIZE[1]))
+                    SURF.blit(cell_surf, (w * side, h * side))
 
-
-
-                #SURF.blit(cell_surf,(x*CELL_SIZE[0], y * CELL_SIZE[1]))
-
-
-
-                #tmp_surf.fill(colors.random_color(), rect=(x*CELL_SIZE[0],y*CELL_SIZE[1],CELL_SIZE[0],CELL_SIZE[1]))
-
-                #tmp_surf.blit(cell_surf, (x*CELL_SIZE[0], y * CELL_SIZE[1]))
-
-#                pygame.draw.rect(SURF, colors.random_color(), (x*CELL_SIZE[0],y*CELL_SIZE[1],CELL_SIZE[0],CELL_SIZE[1]))
-    #surfarray.blit_array(SURF, dest)
-    #SURF.blit(tmp_surf,(0,0))
-
-def update(maps):
-    nbrs_count = sum(np.roll(np.roll(maps, i, 0), j, 1)
+def update(oldmap):
+    """\
+Update the status fo every cell according to arround live cells.
+"""
+    nbrs_count = sum(np.roll(np.roll(oldmap, i, 0), j, 1)
                 for i in (-1, 0, 1) for j in (-1, 0, 1)
                 if (i != 0 or j != 0))
-    _newmaps = (nbrs_count == 3) | (maps & (nbrs_count == 2))
-    newmaps = np.zeros((WIDTH+2,HEIGHT+2), dtype=np.bool)
-    newmaps[1:WIDTH+1, 1:HEIGHT+1] = _newmaps[1:WIDTH+1, 1:HEIGHT+1]
-#    newmaps = np.zeros((HEIGHT+2,WIDTH+2), dtype=np.bool)
-#    for y in range(HEIGHT):
-#        row_cell = []
-#        y += 1
-#        for x in range(WIDTH):
-#            count = 0
-#            x += 1
-#            count = np.sum(maps[y-1:y+2,x-1:x+2]) - maps[y, x]
-#            if count==3:
-#                newmaps[y][x] = np.bool(1)
-#row_cell.append(True)
-#            elif count==2:
-#                newmaps[y][x] = maps[y][x]
-#row_cell.append(maps[y][x])
-#            else:
-#                newmaps[y][x] = np.bool(0)
-#row_cell.append(False)
-#if random.randint(0,HEIGHT*WIDTH-1) % 65536 == 0:
-#               newmaps[y][x] = True
-#row_cell[-1] = True
-#assert len(row_cell) == (WIDTH-1)
-#    random_y = random.choice(range(0,HEIGHT))
-#    random_x = random.choice(range(0,WIDTH))
-#    newmaps[random_x+1][random_y+1] = np.bool(1)
-    return newmaps
-
+    _newmap = (nbrs_count == 3) | (oldmap & (nbrs_count == 2))
+    newmap = np.zeros(oldmap.shape, dtype=np.bool)
+    newmap[1:-1, 1:-1] = _newmap[1:-1, 1:-1]
+    return newmap
 
 if __name__ == '__main__':
     main()
