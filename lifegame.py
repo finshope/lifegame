@@ -53,10 +53,10 @@ Press 'p' to pause the game.
                 if event.key == K_q:
                     pygame.quit()
                     sys.exit()
-                if event.key == K_a and FPS > 1:
-                    FPS -= 1
-                if event.key == K_d and FPS < 60:
-                    FPS += 1
+                if event.key == K_a and fps > 1:
+                    fps -= 1
+                if event.key == K_d and fps < 60:
+                    fps += 1
                 if event.key == K_p:
                     paused = not paused
                 if event.key == K_f:
@@ -65,6 +65,8 @@ Press 'p' to pause the game.
                     maps[random.randint(1, width), :] = True
                 if event.key == K_l:
                     maps[:, random.randint(1, height)] = True
+                if event.key == K_m:
+                    maps[:, :] = False
                 if event.key == K_z and side > 5:
                     side -= 5
                     if side == 15:
